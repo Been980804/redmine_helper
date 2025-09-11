@@ -213,12 +213,11 @@ document.addEventListener("DOMContentLoaded", async () => {
   });
 });
 
-// 담당자 즐겨찾기
+// ===== 담당자 즐겨찾기 (칩 UI) =====
 const KEY = "favoriteAssignees"; // [{ name: "이현빈" }]
 const assigneeInput = document.getElementById("assigneeInput");
 const btnAddFav = document.getElementById("btnAddFav");
 const favList = document.getElementById("favList");
-const autoApply = document.getElementById("autoApply");
 
 async function getActiveTab() {
   const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
@@ -226,59 +225,58 @@ async function getActiveTab() {
 }
 
 function renderFavs(favs = []) {
-  favList.innerHTML = "";
-  if (!favs.length) {
-    const li = document.createElement("li");
-    li.textContent = "즐겨찾기가 없습니다.";
-    li.className = "muted";
-    favList.appendChild(li);
-    return;
-  }
+  favList.innerHTML = "";          // 비우기
+  // 비었으면 CSS :empty 규칙으로 자동 숨김됨
   favs.forEach(({ name }) => {
     const li = document.createElement("li");
+    li.className = "chip";
 
-    const left = document.createElement("span");
-    left.textContent = name;
-
-    const right = document.createElement("div");
-
-    const bApply = document.createElement("button");
-    bApply.textContent = "적용";
-    bApply.addEventListener("click", async () => {
-      const tab = await getActiveTab();
-      chrome.tabs.sendMessage(
-        tab.id,
-        { type: "APPLY_ASSIGNEE_NAME", name },
-        (res) => {
-          if (!res?.ok) alert("현재 페이지에서 담당자 적용에 실패했습니다.");
-          else {
-            // 마지막 사용 저장(컨텐츠 스크립트에서도 저장하지만 보조로)
-            chrome.storage.sync.set({ lastUsedFavName: name });
-            window.close();
-          }
-        }
-      );
-    });
+    const bName = document.createElement("button");
+    bName.className = "chip__name";
+    bName.textContent = name;
+    bName.dataset.name = name;
+    bName.title = "클릭하면 담당자에 적용";
 
     const bDel = document.createElement("button");
-    bDel.textContent = "삭제";
-    bDel.className = "tiny";
-    bDel.addEventListener("click", () => {
-      chrome.storage.sync.get([KEY], (data) => {
-        const list = (data[KEY] || []).filter((x) => x.name !== name);
-        chrome.storage.sync.set({ [KEY]: list }, () => renderFavs(list));
-      });
-    });
+    bDel.className = "chip__x";
+    bDel.textContent = "❌";
+    bDel.dataset.name = name;
+    bDel.title = "삭제";
 
-    right.appendChild(bApply);
-    right.appendChild(bDel);
-
-    li.appendChild(left);
-    li.appendChild(right);
+    li.appendChild(bName);
+    li.appendChild(bDel);
     favList.appendChild(li);
   });
 }
 
+
+// 칩 클릭(적용/삭제) — 이벤트 위임
+favList.addEventListener("click", async (e) => {
+  const btn = e.target.closest("button");
+  if (!btn) return;
+  const name = btn.dataset.name;
+  if (!name) return;
+
+  if (btn.classList.contains("chip__name")) {
+    const res = await sendMsgToContent({ type: "APPLY_ASSIGNEE_NAME", name });
+    if (!res?.ok) {
+      alert("담당자 적용에 실패했습니다. (이슈 작성 페이지/폼이 열려있는지 확인)");
+      console.warn("[popup] apply failed:", res);
+    } else {
+      // ✨ 팝업은 닫지 않음. 시각 피드백만
+      const chip = btn.closest(".chip");
+      chip?.classList.add("applied");
+      setTimeout(() => chip?.classList.remove("applied"), 900);
+    }
+  } else if (btn.classList.contains("chip__x")) {
+    chrome.storage.sync.get(["favoriteAssignees"], (data) => {
+      const list = (data.favoriteAssignees || []).filter((x) => x.name !== name);
+      chrome.storage.sync.set({ favoriteAssignees: list }, () => renderFavs(list));
+    });
+  }
+});
+
+// 추가 버튼 / Enter 입력으로 즐겨찾기 등록
 btnAddFav.addEventListener("click", () => {
   const name = (assigneeInput.value || "").trim();
   if (!name) return alert("담당자 이름을 입력하세요.");
@@ -292,15 +290,62 @@ btnAddFav.addEventListener("click", () => {
     });
   });
 });
-
-autoApply.addEventListener("change", () => {
-  chrome.storage.sync.set({ autoApplyLastFav: autoApply.checked });
+assigneeInput.addEventListener("keydown", (e) => {
+  if (e.key === "Enter") btnAddFav.click();
 });
 
-function init() {
-  chrome.storage.sync.get([KEY, "autoApplyLastFav"], (data) => {
+// 팝업 열릴 때 저장된 즐겨찾기 로드
+function initFavs() {
+  chrome.storage.sync.get([KEY], (data) => {
     renderFavs(data[KEY] || []);
-    autoApply.checked = !!data.autoApplyLastFav;
   });
 }
-document.addEventListener("DOMContentLoaded", init);
+document.addEventListener("DOMContentLoaded", initFavs);
+
+// ---- popup.js: content.js 주입/메시지 전송 보장 헬퍼 ----
+async function getActiveTabId() {
+  const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+  return tab?.id;
+}
+
+// content.js가 떠 있는지 PING으로 확인
+function pingContent(tabId) {
+  return new Promise((resolve) => {
+    chrome.tabs.sendMessage(tabId, { type: "PING" }, () => {
+      resolve(!chrome.runtime.lastError); // 있으면 true
+    });
+  });
+}
+
+// 없으면 주입하고 다시 확인
+async function ensureContentLoaded(tabId) {
+  if (await pingContent(tabId)) return true;
+
+  await chrome.scripting.executeScript({
+    target: { tabId, allFrames: true },
+    files: ["content.js"],
+  });
+
+  // 약간 대기 후 재핑
+  await new Promise((r) => setTimeout(r, 60));
+  return pingContent(tabId);
+}
+
+// 메시지 객체 그대로 전송
+async function sendMsgToContent(msgObject) {
+  const tabId = await getActiveTabId();
+  if (!tabId) return { ok: false, error: "NO_TAB" };
+
+  const ready = await ensureContentLoaded(tabId);
+  if (!ready) return { ok: false, error: "INJECT_FAIL" };
+
+  return new Promise((resolve) => {
+    chrome.tabs.sendMessage(tabId, msgObject, (res) => {
+      if (chrome.runtime.lastError) {
+        resolve({ ok: false, error: chrome.runtime.lastError.message });
+      } else {
+        resolve(res || { ok: false });
+      }
+    });
+  });
+}

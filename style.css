@@ -70,7 +70,7 @@ section {
   display: block;
   margin-bottom: 10px;
 }
-#companyInput {
+#companyInput, #assigneeInput {
   width: 90%;
   padding: 10px 12px;
   font-size: 14px;
@@ -108,7 +108,7 @@ section {
 }
 
 /* 조회 버튼 */
-#searchBtn {
+#searchBtn, #btnAddFav {
   margin-top: 4px;
 }
 
@@ -126,3 +126,41 @@ section {
   font-size: 12px;
   color: #6b7280;
 }
+
+/* ====== 담당자 즐겨찾기 칩 ====== */
+#assignee-fav-section .chips {
+  list-style: none;
+  padding: 0;
+  margin: 10px 0 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+#assignee-fav-section .chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  border: 1px solid #d1d5db;
+  background: #f9fafb;
+  border-radius: 999px; /* pill */
+}
+#assignee-fav-section .chip__name {
+  background: transparent;
+  border: 0;
+  padding: 0;
+  font-size: 13px;
+  cursor: pointer;
+}
+#assignee-fav-section .chip__name:hover { text-decoration: underline; }
+#assignee-fav-section .chip__x {
+  background: transparent;
+  border: 0;
+  padding: 0 2px;
+  font-size: 14px;
+  line-height: 1;
+  cursor: pointer;
+  opacity: .6;
+}
+#assignee-fav-section .chip__x:hover { opacity: 1; }
+#assignee-fav-section .chips:empty { display: none; }
