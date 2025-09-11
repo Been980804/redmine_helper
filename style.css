@@ -1,0 +1,128 @@
+/* ====== 공통 ====== */
+:root{
+  --gap: 16px;
+  --radius: 8px;
+  --border: 1px solid #e5e7eb;
+}
+html, body {
+  width: 520px;
+  margin: 0;
+  padding: 16px;
+  box-sizing: border-box;
+  font-family: Arial, sans-serif;
+  color: #111827;
+  background: #fff;
+}
+h1 {
+  font-size: 18px;
+  margin: 0 0 var(--gap);
+}
+h2 {
+  font-size: 16px;
+  margin: 20px 0 8px;
+}
+.sub {
+  margin: 0 0 10px;
+  font-size: 13px;
+  color: #6b7280;
+}
+section {
+  border: var(--border);
+  border-radius: var(--radius);
+  padding: 14px;
+  margin-top: var(--gap);
+}
+
+/* ====== 버튼 공통 ====== */
+.btn {
+  appearance: none;
+  border: 1px solid #d1d5db;
+  background: #f9fafb;
+  border-radius: 6px;
+  padding: 10px 14px;
+  font-size: 14px;
+  cursor: pointer;
+  transition: background .2s, transform .03s, border-color .2s, box-shadow .2s;
+}
+.btn:hover { background: #eef2f7; }
+.btn:active { transform: translateY(1px); }
+
+
+.row {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+/* ====== 템플릿 버튼 영역 ====== */
+#template-buttons {
+  justify-content: center;
+}
+#template-buttons .btn {
+  flex: 1 1 140px;   /* 두 버튼 균등 분배 + 최소 너비 */
+}
+
+/* ====== 고객사 검색 ====== */
+.autocomplete {
+  position: relative;
+  display: block;
+  margin-bottom: 10px;
+}
+#companyInput {
+  width: 90%;
+  padding: 10px 12px;
+  font-size: 14px;
+  border-radius: 6px;
+  border: 1px solid #d1d5db;
+  outline: none;
+}
+#companyInput:focus {
+  border-color: #2563eb;
+  box-shadow: 0 0 0 3px rgba(37,99,235,.15);
+}
+
+/* 자동완성 드롭다운 */
+.autocomplete-items {
+  position: absolute;
+  z-index: 9999;
+  left: 0;
+  right: 0;
+  background: #fff;
+  border: 1px solid #d4d4d4;
+  border-top: none;
+  max-height: 160px;
+  overflow: auto;
+  border-radius: 0 0 6px 6px;
+  box-shadow: 0 6px 24px rgba(0,0,0,.06);
+}
+.autocomplete-items div {
+  padding: 8px 10px;
+  cursor: pointer;
+  font-size: 14px;
+}
+.autocomplete-items div:hover,
+.autocomplete-active {
+  background: #eef2ff !important;
+}
+
+/* 조회 버튼 */
+#searchBtn {
+  margin-top: 4px;
+}
+
+/* 결과 표시 */
+#resultBox {
+  font-size: 15px;
+  margin-top: 12px;
+  font-weight: bold;
+  white-space: pre-line; /* "회사명:\n제품유형:" 줄바꿈 보존 */
+}
+
+/* 템플릿 삽입 결과 로그(있으면) */
+#result {
+  margin-top: 8px;
+  font-size: 12px;
+  color: #6b7280;
+}

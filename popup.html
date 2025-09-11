@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>레드마인 일감 등록 도우미</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <h1>레드마인 일감 등록 도우미</h1>
+
+  <!-- 🔹 템플릿 버튼 영역 -->
+  <section id="template-section">
+    <h2>템플릿 삽입</h2>
+    <p class="sub">원하는 템플릿을 선택하세요.</p>
+    <div id="template-buttons" class="row">
+      <button id="errorTemplateBtn" class="btn danger">오류 템플릿</button>
+      <button id="requestTemplateBtn" class="btn primary">요청 템플릿</button>
+    </div>
+  </section>
+
+  <!-- 🔹 고객사 검색 영역 -->
+  <section id="company-section">
+    <h2>고객사 검색</h2>
+    <div class="autocomplete">
+      <input
+        id="companyInput"
+        type="text"
+        placeholder="고객사명을 입력하세요"
+        autocomplete="off"
+      />
+    </div>
+    <button id="searchBtn">조회</button>
+    <div id="resultBox"></div>
+  </section>
+
+  <!-- 결과 출력용 -->
+  <div id="result"></div>
+
+  <!-- JS -->
+  <script src="script.js"></script>
+  <script src="popup.js"></script>
+</body>
+</html>
