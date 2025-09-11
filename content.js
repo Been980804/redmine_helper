@@ -2,6 +2,7 @@
 // content.js  (레드마인 일감 등록 도우미 - 통합판)
 // - 템플릿 삽입 (오류/요청) → 지원항목 자동/해결주체=운영팀/블록보기 ON
 // - 회사명/제품유형 자동 반영
+// - 담당자 즐겨찾기(수동 입력) 적용: 입력한 이름을 느슨 매칭해 드롭다운 자동 선택
 // ============================================================================
 
 // iframe에서는 동작하지 않게
@@ -29,6 +30,15 @@ if (window.top !== window) {
       await sleep(step);
     }
     return null;
+  }
+
+  // 이름 느슨 매칭용: 기호/공백/문장부호 제거 + 소문자화 (ⓕ, •, 괄호, 공백 등 무시)
+  function normName(s) {
+    return (s || "")
+      .toString()
+      .toLowerCase()
+      .normalize("NFKC")
+      .replace(/[\p{P}\p{S}\s]/gu, ""); // 유니코드: punctuation/symbol/space 제거
   }
 
   // ──────────────────────────────────────────────────────────────────────────
@@ -529,7 +539,68 @@ if (window.top !== window) {
   }
 
   // ──────────────────────────────────────────────────────────────────────────
-  // 메시지 핸들러 (템플릿/회사명·제품유형)
+  // 담당자 (수동 입력 즐겨찾기) 적용 함수
+  // ──────────────────────────────────────────────────────────────────────────
+  function findAssigneeSelect() {
+    // 1) id
+    let el = document.getElementById('issue_assigned_to_id');
+    if (el?.tagName === 'SELECT') return el;
+
+    // 2) name
+    el = document.querySelector('select[name="issue[assigned_to_id]"]');
+    if (el) return el;
+
+    // 3) label: "담당자"
+    const labels = [...document.querySelectorAll('label[for]')];
+    const lb = labels.find(x => /담당자/i.test((x.textContent || '').trim()));
+    if (lb) {
+      const cand = document.getElementById(lb.getAttribute('for'));
+      if (cand?.tagName === 'SELECT') return cand;
+    }
+
+    // 4) 최후 추정: 옵션에 사용자 느낌이 있는 select
+    const cands = [...document.querySelectorAll('select')];
+    for (const s of cands) {
+      const hasUserish = [...s.options].some(o => (o.textContent || "").includes("님"));
+      if (hasUserish) return s;
+    }
+    return null;
+  }
+
+  function applyAssigneeByNameLoose(inputName) {
+    const sel = findAssigneeSelect();
+    if (!sel) { console.warn('[content] assignee select not found'); return false; }
+
+    const target = normName(inputName);
+    const opts = [...sel.options];
+
+    // 1) 값(ID)로도 허용: 사용자가 숫자 ID를 입력했다면
+    let hit = opts.find(o => norm(String(o.value)) === norm(String(inputName)));
+
+    // 2) 텍스트 느슨 매칭: "ⓕ이 현빈" vs "이현빈"
+    if (!hit) {
+      hit = opts.find(o => normName(o.textContent) === target);
+    }
+    // 3) 부분 포함 매칭(최후 수단)
+    if (!hit) {
+      hit = opts.find(o => normName(o.textContent).includes(target));
+    }
+
+    if (!hit) { console.warn('[content] assignee option not found for', inputName); return false; }
+
+    sel.selectedIndex = opts.indexOf(hit);
+    hit.selected = true;
+    sel.value = hit.value;
+
+    try { sel.dispatchEvent(new Event('input',  { bubbles:true })); } catch {}
+    try { sel.dispatchEvent(new Event('change', { bubbles:true })); } catch {}
+
+    console.log('[content] assignee applied:', (hit.textContent || hit.value));
+    return true;
+  }
+
+  // ──────────────────────────────────────────────────────────────────────────
+  // 메시지 핸들러 (템플릿/회사명·제품유형/담당자-수동입력)
   // ──────────────────────────────────────────────────────────────────────────
   chrome.runtime.onMessage.addListener((msg, _s, sendResponse) => {
     if (msg?.type === 'PING') { sendResponse({ ok:true }); return true; }
@@ -548,6 +619,14 @@ if (window.top !== window) {
 
       whenReady(() => applyCompanyName(company));
       whenReady(() => applyProductType(productType));
+      return true;
+    }
+
+    // 담당자 즐겨찾기(수동 입력) → 이름 기반 느슨 매칭 적용
+    if (msg?.type === 'APPLY_ASSIGNEE_NAME' && msg?.name) {
+      const ok = applyAssigneeByNameLoose(msg.name);
+      try { chrome.storage?.sync?.set?.({ lastUsedFavName: msg.name }); } catch {}
+      sendResponse({ ok: !!ok });
       return true;
     }
   });

@@ -212,3 +212,95 @@ document.addEventListener("DOMContentLoaded", async () => {
     resolveAndApply(true);
   });
 });
+
+// 담당자 즐겨찾기
+const KEY = "favoriteAssignees"; // [{ name: "이현빈" }]
+const assigneeInput = document.getElementById("assigneeInput");
+const btnAddFav = document.getElementById("btnAddFav");
+const favList = document.getElementById("favList");
+const autoApply = document.getElementById("autoApply");
+
+async function getActiveTab() {
+  const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+  return tab;
+}
+
+function renderFavs(favs = []) {
+  favList.innerHTML = "";
+  if (!favs.length) {
+    const li = document.createElement("li");
+    li.textContent = "즐겨찾기가 없습니다.";
+    li.className = "muted";
+    favList.appendChild(li);
+    return;
+  }
+  favs.forEach(({ name }) => {
+    const li = document.createElement("li");
+
+    const left = document.createElement("span");
+    left.textContent = name;
+
+    const right = document.createElement("div");
+
+    const bApply = document.createElement("button");
+    bApply.textContent = "적용";
+    bApply.addEventListener("click", async () => {
+      const tab = await getActiveTab();
+      chrome.tabs.sendMessage(
+        tab.id,
+        { type: "APPLY_ASSIGNEE_NAME", name },
+        (res) => {
+          if (!res?.ok) alert("현재 페이지에서 담당자 적용에 실패했습니다.");
+          else {
+            // 마지막 사용 저장(컨텐츠 스크립트에서도 저장하지만 보조로)
+            chrome.storage.sync.set({ lastUsedFavName: name });
+            window.close();
+          }
+        }
+      );
+    });
+
+    const bDel = document.createElement("button");
+    bDel.textContent = "삭제";
+    bDel.className = "tiny";
+    bDel.addEventListener("click", () => {
+      chrome.storage.sync.get([KEY], (data) => {
+        const list = (data[KEY] || []).filter((x) => x.name !== name);
+        chrome.storage.sync.set({ [KEY]: list }, () => renderFavs(list));
+      });
+    });
+
+    right.appendChild(bApply);
+    right.appendChild(bDel);
+
+    li.appendChild(left);
+    li.appendChild(right);
+    favList.appendChild(li);
+  });
+}
+
+btnAddFav.addEventListener("click", () => {
+  const name = (assigneeInput.value || "").trim();
+  if (!name) return alert("담당자 이름을 입력하세요.");
+  chrome.storage.sync.get([KEY], (data) => {
+    const list = data[KEY] || [];
+    if (list.some((x) => x.name === name)) return alert("이미 즐겨찾기에 있습니다.");
+    list.push({ name });
+    chrome.storage.sync.set({ [KEY]: list }, () => {
+      assigneeInput.value = "";
+      renderFavs(list);
+    });
+  });
+});
+
+autoApply.addEventListener("change", () => {
+  chrome.storage.sync.set({ autoApplyLastFav: autoApply.checked });
+});
+
+function init() {
+  chrome.storage.sync.get([KEY, "autoApplyLastFav"], (data) => {
+    renderFavs(data[KEY] || []);
+    autoApply.checked = !!data.autoApplyLastFav;
+  });
+}
+document.addEventListener("DOMContentLoaded", init);

@@ -9,6 +9,24 @@
 <body>
   <h1>레드마인 일감 등록 도우미</h1>
 
+  <!-- 🔹 담당자 즐겨찾기 (수동 입력, 최상단) -->
+  <section id="assignee-fav-section">
+    <h2>담당자 즐겨찾기</h2>
+    <p class="sub">이름을 직접 입력해 즐겨찾기에 저장하고, 클릭하면 담당자 드롭다운에 자동 적용됩니다. (예: “이현빈” → “ⓕ이 현빈” 매칭)</p>
+
+    <div class="row">
+      <input id="assigneeInput" type="text" placeholder="담당자 이름 입력 (예: 이현빈)" />
+      <button id="btnAddFav" class="btn">추가</button>
+    </div>
+
+    <div class="switch">
+      <input type="checkbox" id="autoApply" />
+      <label for="autoApply">페이지 열 때 마지막 즐겨찾기 자동 적용</label>
+    </div>
+
+    <ul id="favList" class="list"></ul>
+  </section>
+
   <!-- 🔹 템플릿 버튼 영역 -->
   <section id="template-section">
     <h2>템플릿 삽입</h2>
@@ -30,7 +48,7 @@
         autocomplete="off"
       />
     </div>
-    <button id="searchBtn">조회</button>
+    <button id="searchBtn" class="btn">조회</button>
     <div id="resultBox"></div>
   </section>
 
