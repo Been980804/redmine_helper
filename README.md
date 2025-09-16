@@ -1,4 +1,4 @@
-# <img src="./logo/logo-48.png" width="48"/> Redmine_Helper
+# <img src="./logo/logo-48.png" width="40"/> Redmine_Helper
 ## 레드마인 일감 등록 도우미
 
 ### 프로그램 이미지
