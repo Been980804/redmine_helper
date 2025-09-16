@@ -73,6 +73,8 @@ function autocomplete(inp, arr) {
         inp.value = name;
         closeAll();
         clearResult();
+        // 리스트 내 회사명 클릭 시에도 적용
+        resolveAndApply(true);
       });
 
       box.appendChild(d);
