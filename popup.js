@@ -56,25 +56,19 @@ function autocomplete(inp, arr) {
     this.parentNode.appendChild(box);
 
     const v = val.toLowerCase();
-    const matches = arr
-      .filter((x) => x.toLowerCase().startsWith(v))
-      .slice(0, 10);
+    const matches = arr.filter((x) => x.toLowerCase().startsWith(v)).slice(0, 10);
 
     matches.forEach((name) => {
       const d = document.createElement("DIV");
-      d.innerHTML = `<strong>${name.substr(
-        0,
-        val.length
-      )}</strong>${name.substr(val.length)}`;
+      d.innerHTML = `<strong>${name.substr(0, val.length)}</strong>${name.substr(val.length)}`;
       d.innerHTML += `<input type="hidden" value="${name}">`;
 
-      // ★ 클릭: 입력창만 채움. 적용/표시는 하지 않음.
+      // ✅ 리스트 클릭 시: 입력창 채우고 바로 적용
       d.addEventListener("click", () => {
         inp.value = name;
         closeAll();
         clearResult();
-        // 리스트 내 회사명 클릭 시에도 적용
-        resolveAndApply(true);
+        resolveAndApply(true); // 명시적 확정
       });
 
       box.appendChild(d);
@@ -103,7 +97,7 @@ function autocomplete(inp, arr) {
         inp.value = name;
         closeAll();
       }
-      // ★ Enter로만 실제 적용 시도 (명시적 확정)
+      // ✅ Enter 시: 정확 일치일 때만 적용(명시적 확정)
       resolveAndApply(true);
     }
   });
@@ -118,13 +112,10 @@ function autocomplete(inp, arr) {
 
     const container = document.getElementById(inp.id + "autocomplete-list");
     if (!container) return;
-    const top = item.offsetTop,
-      bottom = top + item.offsetHeight;
-    const viewTop = container.scrollTop,
-      viewBottom = viewTop + container.clientHeight;
+    const top = item.offsetTop, bottom = top + item.offsetHeight;
+    const viewTop = container.scrollTop, viewBottom = viewTop + container.clientHeight;
     if (top < viewTop) container.scrollTop = top;
-    else if (bottom > viewBottom)
-      container.scrollTop = bottom - container.clientHeight;
+    else if (bottom > viewBottom) container.scrollTop = bottom - container.clientHeight;
   }
 
   function closeAll(el) {
@@ -148,7 +139,6 @@ function showConfirmed(company, productType) {
       <div>제품 유형 : <strong>${productType}</strong></div>
     `;
 }
-
 function showNeedSelection() {
   const box = document.getElementById("resultBox");
   box.textContent = "하나를 선택하거나 정확히 입력 후 Enter/조회";
@@ -227,7 +217,7 @@ async function getActiveTab() {
 }
 
 function renderFavs(favs = []) {
-  favList.innerHTML = "";          // 비우기
+  favList.innerHTML = ""; // 비우기
   // 비었으면 CSS :empty 규칙으로 자동 숨김됨
   favs.forEach(({ name }) => {
     const li = document.createElement("li");
@@ -250,7 +240,6 @@ function renderFavs(favs = []) {
     favList.appendChild(li);
   });
 }
-
 
 // 칩 클릭(적용/삭제) — 이벤트 위임
 favList.addEventListener("click", async (e) => {
@@ -351,3 +340,16 @@ async function sendMsgToContent(msgObject) {
     });
   });
 }
+
+// === 팝업 열릴 때: 완료일(완료일 입력칸) 오늘로 자동 설정 ===
+//   - content.js에서 {type:"SET_DUE_TODAY", force:boolean} 메시지를 처리해야 함
+document.addEventListener("DOMContentLoaded", async () => {
+  try {
+    const tabId = await getActiveTabId();
+    if (tabId && await ensureContentLoaded(tabId)) {
+      await sendMsgToContent({ type: "SET_DUE_TODAY", force: true }); // force:false로 바꾸면 비어있을 때만 채움
+    }
+  } catch (e) {
+    console.warn("[popup] SET_DUE_TODAY failed:", e);
+  }
+});

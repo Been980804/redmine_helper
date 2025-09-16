@@ -3,6 +3,7 @@
 // - 템플릿 삽입 (오류/요청) → 지원항목 자동/해결주체=운영팀/블록보기 ON
 // - 회사명/제품유형 자동 반영
 // - 담당자 즐겨찾기(수동 입력) 적용: 입력한 이름을 느슨 매칭해 드롭다운 자동 선택
+// - 완료일( Due Date ) 오늘로 설정: 팝업에서 호출 시 적용(SET_DUE_TODAY)
 // ============================================================================
 
 // iframe에서는 동작하지 않게
@@ -600,7 +601,47 @@ if (window.top !== window) {
   }
 
   // ──────────────────────────────────────────────────────────────────────────
-  // 메시지 핸들러 (템플릿/회사명·제품유형/담당자-수동입력)
+  // 완료일( Due Date ) 오늘로 설정
+  // ──────────────────────────────────────────────────────────────────────────
+  function findDueDateInput() {
+    // 1) 명시 id
+    let el = document.getElementById('issue_due_date');
+    if (el?.tagName === 'INPUT') return el;
+
+    // 2) name=issue[due_date]
+    el = document.querySelector('input[name="issue[due_date]"]');
+    if (el) return el;
+
+    // 3) label 매칭
+    el = findInputByLabel(/완료일|Due\s*Date/i);
+    if (el?.tagName === 'INPUT') return el;
+
+    // 4) type=date 후보
+    el = document.querySelector('input[type="date"]');
+    return el;
+  }
+
+  function todayYYYYMMDD() {
+    // 로컬 타임존 기준 yyyy-mm-dd (타임존 오프셋 보정)
+    const dt = new Date(Date.now() - new Date().getTimezoneOffset() * 60000);
+    return dt.toISOString().split('T')[0];
+  }
+
+  function setDueToday({ force = true } = {}) {
+    const el = findDueDateInput();
+    if (!el) { console.warn('[content] due-date input not found'); return false; }
+
+    if (!force && el.value) return true; // 비어있을 때만
+
+    el.value = todayYYYYMMDD();
+    try { el.dispatchEvent(new Event('input',  { bubbles:true })); } catch {}
+    try { el.dispatchEvent(new Event('change', { bubbles:true })); } catch {}
+    console.log('[content] due date set to today');
+    return true;
+  }
+
+  // ──────────────────────────────────────────────────────────────────────────
+  // 메시지 핸들러 (템플릿/회사명·제품유형/담당자-수동입력/완료일)
   // ──────────────────────────────────────────────────────────────────────────
   chrome.runtime.onMessage.addListener((msg, _s, sendResponse) => {
     if (msg?.type === 'PING') { sendResponse({ ok:true }); return true; }
@@ -627,6 +668,19 @@ if (window.top !== window) {
       const ok = applyAssigneeByNameLoose(msg.name);
       try { chrome.storage?.sync?.set?.({ lastUsedFavName: msg.name }); } catch {}
       sendResponse({ ok: !!ok });
+      return true;
+    }
+
+    // 완료일 오늘로 설정 (팝업 열릴 때 등에서 호출)
+    if (msg?.type === 'SET_DUE_TODAY') {
+      // 필드가 늦게 렌더링되는 경우 대비
+      const force = !!msg.force;
+      const applyNow = () => setDueToday({ force });
+      const okImmediate = applyNow();
+      if (!okImmediate) {
+        whenReady(() => applyNow());
+      }
+      sendResponse({ ok: !!okImmediate });
       return true;
     }
   });
